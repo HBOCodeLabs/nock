@@ -29,6 +29,9 @@
 , "bugs" :
   { "url" : "http://github.com/HBOCodeLabs/nock/issues" }
 , "engines" : ["node >= 0.4.10"]
+, "dependencies" :
+  { "underscore": "~ 1.4.3"
+  }
 , "main" : "./index"
 , "devDependencies": {
     "tap": "0.2.x",
