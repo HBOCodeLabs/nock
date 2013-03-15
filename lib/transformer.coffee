@@ -12,8 +12,9 @@ builtinTransformers =
       else
         return null
     transformPlayback: (response) ->
+      transformed = new WrappedHttpResponse( response, response.pipe (zlib.createZip() ))
       response.headers['content-encoding'] = 'gzip'
-      response.pipe( zlib.createZip() )
+      return transformed
 
   jsonTransformer:
     transformRecord: (response) ->
@@ -26,7 +27,10 @@ builtinTransformers =
       else
         return null
     transformPlayback: (response) ->
-#TODO
+      transformed = new StringTransformResponse response, (responseBody) ->
+        parsedJSON = JSON.parse( responseBody )
+        return JSON.stringify( parsedJSON )
+      return transformed
 
   doubleJsonTransformer:
     transformRecord: (response) ->
@@ -35,8 +39,11 @@ builtinTransformers =
         return JSON.stringify( parsedJSON, null, 2 )
       delete transformed.headers['content-length']
       return transformed
-    transformPlayback: (headers) ->
-#TODO
+    transformPlayback: (response) ->
+      transformed = new StringTransformResponse response, (responseBody) ->
+        parsedJSON = JSON.parse( responseBody );
+        uglyJSON = JSON.stringify( JSON.stringify( parsedJSON ))
+        return uglyJSON
 
 defaultTransformers = [
   'gzipTransformer',
@@ -47,12 +54,13 @@ defaultTransformers = [
 
 # Simualte/wrap a HTTP response with an alternate stream
 class WrappedHttpResponse extends require('stream')
-  constructor: (@response, responseStream) ->
+  constructor: (@response, responseStream, headers) ->
     super()
-    this.headers = _.clone(@response.headers)
-    @trailers = @response.trailers
-    @statusCode = @response.statusCode
-    @httpVersion = @response.httpVersion
+    @headers = _.clone( (headers) ? headers : @response.headers)
+    if (response)
+      @trailers = @response.trailers
+      @statusCode = @response.statusCode
+      @httpVersion = @response.httpVersion
     @responseStream = (responseStream) ? responseStream : @response
 
     @responseStream.on 'data', (data) =>
@@ -94,18 +102,30 @@ class StringTransformResponse extends WrappedHttpResponse
     super(response, response.pipe(new StringTransformStream(stringTransformer)))
 
 # Apply transforms and return the response to be recorded
-transformResponse = (res, recordOptions, transformsUsed) ->
-  #responseTransformers = recordOptions.responseTransformers;
+transformRecordedResponse = (res, recordOptions, transformsUsed) ->
+  responseTransformers = recordOptions.responseTransformers;
+  if (!responseTransformers)
+    responseTransformers = defaultTransformers
   recordedResponse = res
-  responseTransformers = defaultTransformers
   if responseTransformers
     for transformerName in responseTransformers
       transformer = builtinTransformers[transformerName]
-      transformedResponse = transformer.transformRecord(res)
+      transformedResponse = transformer.transformRecord(recordedResponse)
       if transformedResponse
         recordedResponse = transformedResponse;
         transformsUsed.push( transformerName );
 
   return recordedResponse
 
-module.exports = { builtinTransformers, defaultTransformers, transformResponse }
+transformPlaybackResponse = (headers, body, responseTransformers) ->
+  transformedResponse = new WrappedHttpResponse( null, body, headers )
+  for transformerName in responseTransformers
+    transformer = builtinTransformers[transformerName]
+    transformedResponse = transformer.transformPlayback(transformedResponse)
+
+  return transformedResponse
+
+module.exports = {
+  transformRecordedResponse,
+  transformPlaybackResponse
+}
