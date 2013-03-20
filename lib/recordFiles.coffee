@@ -1,4 +1,7 @@
 crypto = require( 'crypto' )
+fs = require('fs');
+path = require('path');
+buffer = require('buffer');
 
 sequence = 0
 
@@ -16,7 +19,7 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
   else if (typeof (option) == 'string' )
     getResponseBaseFileName = builtinGetBaseFileName[option]
   else
-    getResponseBaseFileName = builtinGetBaseFileName.hash
+    getResponseBaseFileName = builtinGetBaseFileName.sequence
 
   filename = getResponseBaseFileName( requestOptions, requestBody ) + "-body"
 
@@ -24,6 +27,18 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
 
   return filename
 
+recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions) ->
+  fileName = path.join(
+    recordOptions.bodyPath, getResponseBodyFileName(requestOptions, requestBody, recordOptions))
+  ws = fs.createWriteStream(fileName)
+  buf = new buffer.Buffer(responseBody)
+
+  ws.write(responseBody);
+  ws.end();
+  ws.destroy();
+
+  return fileName
+
 module.exports = {
-  getResponseBodyFileName
+  recordBodyToFile
 }
