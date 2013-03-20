@@ -27,7 +27,7 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
 
   return filename
 
-recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions) ->
+recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions, callback) ->
   fileName = path.join(
     recordOptions.bodyPath, getResponseBodyFileName(requestOptions, requestBody, recordOptions))
   ws = fs.createWriteStream(fileName)
@@ -37,7 +37,8 @@ recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions) ->
   ws.end();
   ws.destroy();
 
-  return fileName
+  callback(null, fileName);
+  return
 
 module.exports = {
   recordBodyToFile
