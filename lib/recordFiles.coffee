@@ -1,4 +1,4 @@
-crypto = require( 'crypto' )
+crypto = require('crypto')
 fs = require('fs');
 path = require('path');
 buffer = require('buffer');
@@ -9,19 +9,19 @@ builtinGetBaseFileName = {
   sequence: (requestOptions, requestBody) ->
     return (sequence++).toString()
   hash: (requestOptions, requestBody) ->
-    return crypto.createHash( "md5" ).update( requestOptions.host + requestOptions.path + requestBody).digest("hex")
+    return crypto.createHash("md5").update(requestOptions.host + requestOptions.path + requestBody).digest("hex")
 }
 
 getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
   option = recordOptions.getResponseBaseFileName
-  if ( typeof( option ) == 'function' )
+  if (typeof(option) == 'function')
     getResponseBaseFileName = option
-  else if (typeof (option) == 'string' )
+  else if (typeof (option) == 'string')
     getResponseBaseFileName = builtinGetBaseFileName[option]
   else
     getResponseBaseFileName = builtinGetBaseFileName.sequence
 
-  filename = getResponseBaseFileName( requestOptions, requestBody ) + "-body"
+  filename = getResponseBaseFileName(requestOptions, requestBody) + "-body"
 
   console.log('filename: ', filename)
 
@@ -30,14 +30,46 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
 recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions, callback) ->
   fileName = path.join(
     recordOptions.bodyPath, getResponseBodyFileName(requestOptions, requestBody, recordOptions))
-  ws = fs.createWriteStream(fileName)
-  buf = new buffer.Buffer(responseBody)
 
-  ws.write(responseBody);
-  ws.end();
-  ws.destroy();
+  checkForExistingFile fileName, responseBody, (err) ->
+    if err
+      callback(err, null)
+      return
+      
+    ws = fs.createWriteStream(fileName)
+    buf = new buffer.Buffer(responseBody)
 
-  callback(null, fileName);
+    ws.write(responseBody);
+    ws.end();
+    ws.destroy();
+
+    callback(null, fileName);
+    return
+  return
+
+checkForExistingFile = (fileName, responseBody, callback) ->
+  exists = fs.existsSync(fileName)
+  if(!exists)
+    callback(null)
+    return
+
+  rs = fs.createReadStream(fileName)
+  
+  # Allow an existing file, but only if the contents exactly match the requestBody
+  compareStreamWithString rs, responseBody, (match) ->
+    console.log('match: ', match)
+    if ! match
+      callback(new Exception('Existing response body file does not match expected response: '+ fileName + ', : ' + responseBody))
+    else
+      callback(null)
+    return
+
+compareStreamWithString = (rs, compareString, callback) ->
+  rsString = ''
+  rs.on 'data', (data) ->
+    rsString += data
+  rs.on 'end', ->
+    callback(rsString == compareString)
   return
 
 module.exports = {
