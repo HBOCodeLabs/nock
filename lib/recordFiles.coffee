@@ -34,7 +34,6 @@ recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions, ca
       callback(err, null)
       return
 
-    console.log('writing file...')      
     ws = fs.createWriteStream(fileName)
     buf = new buffer.Buffer(responseBody)
 
