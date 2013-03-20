@@ -42,7 +42,7 @@ builtinTransformers =
     transformPlayback: (response) ->
       transformed = new StringTransformResponse response, (responseBody) ->
         parsedJSON = JSON.parse( responseBody );
-        uglyJSON = JSON.stringify( parsedJSON )
+        uglyJSON = JSON.stringify( JSON.stringify( parsedJSON ) )
         return uglyJSON
       return transformed
 
@@ -58,7 +58,7 @@ class WrappedHttpResponse extends require('stream').Stream
   constructor: (@response, responseStream, headers) ->
     @readable = true
     @writable = false
-    @headers = _.clone( (headers) ? headers : @response.headers)
+    @headers = _.clone( if headers then headers else @response.headers )
     if (response)
       @trailers = @response.trailers
       @statusCode = @response.statusCode
