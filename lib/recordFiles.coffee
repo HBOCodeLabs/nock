@@ -19,11 +19,9 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
   else if (typeof (option) == 'string')
     getResponseBaseFileName = builtinGetBaseFileName[option]
   else
-    getResponseBaseFileName = builtinGetBaseFileName.sequence
+    getResponseBaseFileName = builtinGetBaseFileName.hash
 
   filename = getResponseBaseFileName(requestOptions, requestBody) + "-body"
-
-  console.log('filename: ', filename)
 
   return filename
 
@@ -35,7 +33,8 @@ recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions, ca
     if err
       callback(err, null)
       return
-      
+
+    console.log('writing file...')      
     ws = fs.createWriteStream(fileName)
     buf = new buffer.Buffer(responseBody)
 
@@ -57,9 +56,8 @@ checkForExistingFile = (fileName, responseBody, callback) ->
   
   # Allow an existing file, but only if the contents exactly match the requestBody
   compareStreamWithString rs, responseBody, (match) ->
-    console.log('match: ', match)
     if ! match
-      callback(new Exception('Existing response body file does not match expected response: '+ fileName + ', : ' + responseBody))
+      callback(new Error('Existing response body file does not match expected response: '+ fileName + ', : ' + responseBody))
     else
       callback(null)
     return
