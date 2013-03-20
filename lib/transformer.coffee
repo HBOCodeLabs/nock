@@ -42,8 +42,9 @@ builtinTransformers =
     transformPlayback: (response) ->
       transformed = new StringTransformResponse response, (responseBody) ->
         parsedJSON = JSON.parse( responseBody );
-        uglyJSON = JSON.stringify( JSON.stringify( parsedJSON ))
+        uglyJSON = JSON.stringify( parsedJSON )
         return uglyJSON
+      return transformed
 
 defaultTransformers = [
   'gzipTransformer',
@@ -53,9 +54,10 @@ defaultTransformers = [
   
 
 # Simualte/wrap a HTTP response with an alternate stream
-class WrappedHttpResponse extends require('stream')
+class WrappedHttpResponse extends require('stream').Stream
   constructor: (@response, responseStream, headers) ->
-    super()
+    @readable = true
+    @writable = false
     @headers = _.clone( (headers) ? headers : @response.headers)
     if (response)
       @trailers = @response.trailers
@@ -72,34 +74,34 @@ class WrappedHttpResponse extends require('stream')
     @responseStream.on 'close', =>
       @emit 'close'
     
-  readable: true
-  writable: false
   pause: => @responseStream.pause()
   resume: => @responseStream.resume()
   setEncoding: (encoding) => @responseStream.setEncoding(encoding)
-  pipe: (destination, options) => @responseStream.pipe(destination, options)
 
 # A pipe that will read the entire input stream into a string, call a transform method, and
 # emit the result as a stream
-class StringTransformStream extends require('stream')
-  constructor: (@stringTransformer) ->
+class StringTransformStream extends require('stream').Stream
+  constructor: (@srcStream, @stringTransformer) ->
     @data = ''
-  readable: true
-  writable: true
-  write: (chunk) => @data += chunk
+    @readable = true
+    @writable = true
+  write: (chunk) =>
+    @data += chunk
+    return true
   end: (chunk) =>
     if chunk
       @data += chunk
     @emit 'data', @stringTransformer(@data)
     @emit 'end'
-  pause: =>
-  resume: =>
-  destroy: => @emit 'close'
-
+    return true
+  pause: => @srcStream.pause()
+  resume: => @srcStream.resume()
+  setEncoding: (encoding) => @srcStream.setEncoding()
+    
 # Wrap a HTTP response with a different result
 class StringTransformResponse extends WrappedHttpResponse
   constructor: (response, stringTransformer) ->
-    super(response, response.pipe(new StringTransformStream(stringTransformer)))
+    super(response, response.pipe(new StringTransformStream(response, stringTransformer)))
 
 # Apply transforms and return the response to be recorded
 transformRecordedResponse = (res, recordOptions, transformsUsed) ->
