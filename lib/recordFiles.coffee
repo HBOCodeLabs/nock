@@ -16,7 +16,7 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
   else if (typeof (option) == 'string' )
     getResponseBaseFileName = builtinGetBaseFileName[option]
   else
-    getResponseBaseFileName = builtinGetBaseFileName.sequence
+    getResponseBaseFileName = builtinGetBaseFileName.hash
 
   filename = getResponseBaseFileName( requestOptions, requestBody ) + "-body"
 
