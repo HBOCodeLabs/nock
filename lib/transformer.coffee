@@ -54,8 +54,7 @@ builtinTransformers =
 
 defaultTransformers = [
   'gzipTransformer',
-  'jsonTransformer',
-  'doubleJsonTransformer'
+  'jsonTransformer'
 ]
 
 
