@@ -1,7 +1,7 @@
 crypto = require('crypto')
-fs = require('fs');
-path = require('path');
-buffer = require('buffer');
+fs = require('fs')
+path = require('path')
+buffer = require('buffer')
 
 sequence = 0
 
@@ -9,7 +9,7 @@ builtinGetBaseFileName = {
   sequence: (requestOptions, requestBody) ->
     return (sequence++).toString()
   hash: (requestOptions, requestBody) ->
-    return crypto.createHash("md5").update(requestOptions.host + requestOptions.path + requestBody).digest("hex")
+    return crypto.createHash('md5').update(requestOptions.host + requestOptions.path + requestBody).digest('hex')
 }
 
 getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
@@ -21,7 +21,7 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
   else
     getResponseBaseFileName = builtinGetBaseFileName.hash
 
-  filename = getResponseBaseFileName(requestOptions, requestBody) + "-body"
+  filename = getResponseBaseFileName(requestOptions, requestBody) + '-body'
 
   return filename
 
@@ -60,7 +60,8 @@ checkForExistingFile = (fileName, responseBody, callback) ->
     else
       callback(null)
     return
-
+  return
+  
 compareStreamWithString = (rs, compareString, callback) ->
   rsString = ''
   rs.on 'data', (data) ->

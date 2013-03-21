@@ -51,14 +51,14 @@ defaultTransformers = [
   'jsonTransformer',
   'doubleJsonTransformer'
 ]
-  
+
 
 # Simualte/wrap a HTTP response with an alternate stream
 class WrappedHttpResponse extends require('stream').Stream
   constructor: (@response, responseStream, headers) ->
     @readable = true
     @writable = false
-    @headers = _.clone( if headers then headers else @response.headers )
+    @headers = _.clone( headers ? @response.headers )
     if (response)
       @trailers = @response.trailers
       @statusCode = @response.statusCode
@@ -97,7 +97,7 @@ class StringTransformStream extends require('stream').Stream
   pause: => @srcStream.pause()
   resume: => @srcStream.resume()
   setEncoding: (encoding) => @srcStream.setEncoding()
-    
+
 # Wrap a HTTP response with a different result
 class StringTransformResponse extends WrappedHttpResponse
   constructor: (response, stringTransformer) ->
