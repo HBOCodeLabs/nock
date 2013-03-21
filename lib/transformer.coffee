@@ -34,15 +34,9 @@ builtinTransformers =
 
   doubleJsonTransformer:
     transformRecord: (response) ->
-      exception = null
       transformed = new StringTransformResponse response, (responseBody) ->
-        try
-          outerJSON = JSON.parse(responseBody)
-          innerJSON = JSON.parse(outerJSON)
-        catch e
-          exception = e
-          return responseBody
-        return JSON.stringify(innerJSON, null, 2)
+        parsedJSON = JSON.parse(JSON.parse(responseBody))
+        return JSON.stringify(parsedJSON, null, 2)
       delete transformed.headers['content-length']
       return transformed
     transformPlayback: (response) ->
@@ -116,8 +110,7 @@ class StringTransformResponse extends WrappedHttpResponse
 
 pipeToGzip = (srcStream, gzipperStream) ->
   bufStream = srcStream.pipe(new BufferTransformStream(srcStream))
-  gzipStream = bufStream.pipe(gzipperStream)
-  return gzipStream
+  return bufStream.pipe(gzipperStream)
 
 # Apply transforms and return the response to be recorded
 transformRecordedResponse = (res, recordOptions, transformsUsed) ->
