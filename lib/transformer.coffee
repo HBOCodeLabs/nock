@@ -12,7 +12,7 @@ builtinTransformers =
       else
         return null
     transformPlayback: (response) ->
-      transformed = new WrappedHttpResponse(response, pipeToGzip(response, zlib.createZip()))
+      transformed = new WrappedHttpResponse(response, pipeToGzip(response, zlib.createGzip()))
       response.headers['content-encoding'] = 'gzip'
       return transformed
 
