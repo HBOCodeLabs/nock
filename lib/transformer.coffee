@@ -55,6 +55,7 @@ defaultTransformers = [
 # Simualte/wrap a HTTP response with an alternate stream
 class WrappedHttpResponse extends Stream
   constructor: (@response, responseStream, headers) ->
+    super()
     @readable = true
     @writable = false
     @headers = _.clone(headers ? @response.headers)
@@ -75,64 +76,6 @@ class WrappedHttpResponse extends Stream
   resume: => @responseStream.resume()
   setEncoding: (encoding) => @responseStream.setEncoding(encoding)
 
-# A pipe that will read the entire input stream into a string, call a transform method, and
-# emit the result as a stream
-class StringTransformStream extends Stream
-  constructor: (@srcStream, @stringTransformer) ->
-    @data = ''
-    @readable = true
-    @writable = true
-  write: (chunk) =>
-    @data += chunk
-    return true
-  end: (chunk) =>
-    if chunk
-      @data += chunk
-    @emit 'data', @stringTransformer(@data)
-    @emit 'end'
-    return true
-  pause: =>
-    @srcStream.pause()
-  resume: =>
-    @srcStream.resume()
-  setEncoding: (encoding) =>
-    @srcStream.setEncoding()
-
-# Wrap a HTTP response with a different result
-class StringTransformResponse extends WrappedHttpResponse
-  constructor: (response, stringTransformer) ->
-    super(response, response.pipe(new StringTransformStream(response, stringTransformer)))
-
-# Base class to pipe a stream while converting chunks
-class ChunkTransformStream extends Stream
-  constructor: (@convertChunk) ->
-    @readable = true
-    @writable = true
-  write: (chunk) =>
-    @emit 'data', @convertChunk(chunk, @encoding)
-  end: (chunk) =>
-    if chunk
-      @write(chunk)
-    @emit 'end'
-  setEncoding: (encoding) =>
-    @encoding = encoding
-
-# Stream to convert incomming data into appropriately encoded Buffer
-# Need to do this before piping to zlib streams
-class ToBufferStream extends ChunkTransformStream
-  constructor: ->
-    super (data, encoding) ->
-      return convertToBuffer(data, encoding)
-
-# Stream to convert incomming data into appropriately encoded string
-class OutputStream extends ChunkTransformStream
-  constructor: ->
-    super (data, encoding) ->
-      if encoding
-        return convertToString(data, encoding)
-      else
-        return convertToBuffer(data, encoding)
-
 convertToString = (data, encoding) ->
   if Buffer.isBuffer(data)
     return data.toString(encoding)
@@ -144,23 +87,102 @@ convertToBuffer = (data, encoding) ->
     return new Buffer(data, encoding)
   else
     return data
-    
-# Binary encoding streams (gzip/gunzip) only handle Buffer data and do not pass through
-# pause/resume calls.  Work around that here
-class BinaryEncodingStream extends OutputStream
-  constructor: (@srcStream, encodingStream) ->
+
+# Common functionality for a stream
+class BaseStream extends Stream
+  constructor: ->
     super()
-    @toBufferStream = new ToBufferStream()
-    @srcStream.pipe(@toBufferStream).pipe(encodingStream).pipe(this)
-    
-  pause: =>
-    @srcStream.pause()
-  resume: =>
-    @srcStream.resume()
+    @readable = true
+    @writable = true
+  setEncoding: (encoding) =>
+    @encoding = encoding
+
+# Base class to pipe a stream while converting chunks
+class ChunkTransformStream extends BaseStream
+  constructor: (@convertChunk) ->
+    super()
+  write: (chunk) =>
+    @emit 'data', @convertChunk(chunk, @encoding)
+  end: (chunk) =>
+    if chunk
+      @write(chunk)
+    @emit 'end'
+
+# Stream to convert incomming data into appropriately encoded Buffer
+# Need to do this before piping to zlib streams
+class ToBufferStream extends ChunkTransformStream
+  constructor: ->
+    super (data, encoding) ->
+      return convertToBuffer(data, encoding)
+      
+# Stream to convert incomming data into appropriately encoded string
+class OutputStream extends ChunkTransformStream
+  constructor: ->
+    super (data, encoding) ->
+      if encoding
+        return convertToString(data, encoding)
+      else
+        return convertToBuffer(data, encoding)
+
+class WrappedStream extends OutputStream
+  constructor: (@srcStream) ->
+    super()
+
+  pause: => @srcStream.pause()
+  resume: => @srcStream.resume()
   setEncoding: (encoding) =>
     super(encoding)
     @srcStream.setEncoding(encoding)
+            
+# Binary encoding streams (gzip/gunzip) only handle Buffer data and do not pass through
+# pause/resume calls.  Work around that here
+class BinaryEncodingStream extends WrappedStream
+  constructor: (srcStream, encodingStream) ->
+    super(srcStream)
+    @toBufferStream = new ToBufferStream()
+    srcStream.pipe(@toBufferStream).pipe(encodingStream).pipe(this)
+    
+  setEncoding: (encoding) =>
+    super(encoding)
     @toBufferStream.setEncoding(encoding)
+
+# Base class to pipe a stream, converting/sending all the data at the end
+class EndTransformStream extends BaseStream
+  constructor: (@convertChunks) ->
+    super()
+    @chunks = []
+  write: (chunk) =>
+    @chunks.push(chunk)
+  end: (chunk) =>
+    if chunk
+      @write(chunk)
+    @emit @convertChunks(@chunks, @encoding)
+
+# Base class to pipe a stream, converting/sending string data at the end
+class EndStringTransformStream extends EndTransformStream
+  constructor: (@stringTransform) ->
+    super (chunks, encoding) ->
+      data = ''
+      for chunk in chunks
+        data += convertToString(chunk)
+      return @stringTransform(data, encoding)
+
+# A pipe that will read the entire input stream into a string, call a transform method, and
+# emit the result as a stream
+class StringTransformStream extends WrappedStream
+  constructor: (srcStream, stringTransformer) ->
+    super(srcStream)
+    @endStringTransformStream = new EndStringTransformStream(stringTransformer)
+    srcStream.pipe(@endStringTransformStream).pipe(this)
+
+  setEncoding: (encoding) =>
+    super(encoding)
+    @endStringTransformStream.setEncoding(encoding)
+
+# Wrap a HTTP response with a different result
+class StringTransformResponse extends WrappedHttpResponse
+  constructor: (response, stringTransformer) ->
+    super(response, response.pipe(new StringTransformStream(response, stringTransformer)))
 
 # Apply transforms and return the response to be recorded
 transformRecordedResponse = (res, recordOptions, transformsUsed) ->
