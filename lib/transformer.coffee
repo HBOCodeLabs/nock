@@ -158,15 +158,15 @@ class StringTransformStream extends WrappedStream
 
 # Simualte/wrap a HTTP response with an alternate stream
 class WrappedHttpResponse extends WrappedStream
-  constructor: (@response, responseStream, headers) ->
-    wrappedStream = responseStream ? @response
+  constructor: (response, responseStream, headers) ->
+    wrappedStream = responseStream ? response
     super(wrappedStream)
     wrappedStream.pipe(this)
-    @headers = _.clone(headers ? @response.headers)
+    @headers = _.clone(headers ? response.headers)
     if (response)
-      @trailers = @response.trailers
-      @statusCode = @response.statusCode
-      @httpVersion = @response.httpVersion
+      @trailers = response.trailers
+      @statusCode = response.statusCode
+      @httpVersion = response.httpVersion
 
 # Wrap a HTTP response with a different result
 class StringTransformResponse extends WrappedHttpResponse
