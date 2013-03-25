@@ -73,10 +73,8 @@ class BaseStream extends Stream
     super()
     @readable = true
     @writable = true
-    console.log('ctor: ', @debugName)
 
   setEncoding: (encoding) =>
-    console.log('setEncoding: ', @debugName, encoding)
     @encoding = encoding
 
 # Base class to pipe a stream while converting chunks
@@ -98,11 +96,7 @@ class ToBufferStream extends ChunkTransformStream
   constructor: (srcEncodingDefault) ->
     super (data, srcEncodingWrite, destEncoding) ->
       srcEncoding = srcEncodingWrite ? srcEncodingDefault
-      buf = convertToBuffer(data, srcEncoding)
-      console.log('converting encoding: ', srcEncoding)
-      console.log('converting data: ', typeof data)
-      console.log('to buffer: ', buf)
-      return buf
+      return convertToBuffer(data, srcEncoding)
       
 # Stream to convert incomming data into appropriately encoded string
 class OutputStream extends ChunkTransformStream
@@ -159,20 +153,21 @@ class EndTransformStream extends BaseStream
     @chunks = []
   write: (chunk, encoding) =>
     @chunks.push(chunk)
-  end: (chunk) =>
+  end: (chunk, encoding) =>
     if chunk
-      @write(chunk)
-    @emit @convertChunks(@chunks, @encoding)
+      @write(chunk, encoding)
+    @emit 'data', @convertChunks(@chunks, @encoding)
+    @emit 'end'
 
 # Base class to pipe a stream, converting/sending string data at the end
 class EndStringTransformStream extends EndTransformStream
-  debugName: 'EndTransformStringStream'
+  debugName: 'EndStringTransformStream'
   constructor: (@stringTransform) ->
     super (chunks, encoding) ->
       data = ''
       for chunk in chunks
-        data += convertToString(chunk)
-      return @stringTransform(data, encoding)
+        data += convertToString(chunk, encoding, @encoding)
+      return @stringTransform(data)
 
 # A pipe that will read the entire input stream into a string, call a transform method, and
 # emit the result as a stream
@@ -204,7 +199,7 @@ class WrappedHttpResponse extends WrappedStream
 class StringTransformResponse extends WrappedHttpResponse
   debugName: 'StringTransformResponse'
   constructor: (response, stringTransformer) ->
-    super(response, response.pipe(new StringTransformStream(response, stringTransformer)))
+    super(response, new StringTransformStream(response, stringTransformer))
 
 # Apply transforms and return the response to be recorded
 transformRecordedResponse = (res, recordOptions, transformsUsed) ->
