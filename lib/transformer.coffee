@@ -68,7 +68,6 @@ convertToBuffer = (data, encoding) ->
 
 # Common functionality for a stream
 class BaseStream extends Stream
-  debugName: 'BaseStream'
   constructor: ->
     super()
     @readable = true
@@ -79,7 +78,6 @@ class BaseStream extends Stream
 
 # Base class to pipe a stream while converting chunks
 class ChunkTransformStream extends BaseStream
-  debugName: 'ChunkTransformStream'
   constructor: (@convertChunk) ->
     super()
   write: (chunk, encoding) =>
@@ -92,7 +90,6 @@ class ChunkTransformStream extends BaseStream
 # Stream to convert incomming data into appropriately encoded Buffer
 # Need to do this before piping to zlib streams
 class ToBufferStream extends ChunkTransformStream
-  debugName: 'ToBufferStream'
   constructor: (srcEncodingDefault) ->
     super (data, srcEncodingWrite, destEncoding) ->
       srcEncoding = srcEncodingWrite ? srcEncodingDefault
@@ -100,7 +97,6 @@ class ToBufferStream extends ChunkTransformStream
       
 # Stream to convert incomming data into appropriately encoded string
 class OutputStream extends ChunkTransformStream
-  debugName: 'OutputStream'
   constructor: ->
     super (data, srcEncoding, destEncoding) ->
       if destEncoding
@@ -110,7 +106,6 @@ class OutputStream extends ChunkTransformStream
 
 # Stream to "wrap" another stream, while converting output to the correct type/encoding
 class WrappedStream extends OutputStream
-  debugName: 'WrappedStream'
   constructor: (@srcStream) ->
     super()
 
@@ -123,7 +118,6 @@ class WrappedStream extends OutputStream
 # Buffer encoding streams (gzip/gunzip) only handle Buffer data and do not pass through
 # pause/resume calls.  Work around that here...
 class BufferEncodingStream extends WrappedStream
-  debugName: 'BufferEncodingStream'
   constructor: (srcStream, encodingStream, srcEncoding) ->
     super(srcStream)
     @toBufferStream = new ToBufferStream(srcEncoding)
@@ -134,12 +128,10 @@ class BufferEncodingStream extends WrappedStream
     @toBufferStream.setEncoding(encoding)
 
 class GzipEncodingStream extends BufferEncodingStream
-  debugName: 'GzipEncodingStream'
   constructor: (srcStream) ->
     super(srcStream, zlib.createGzip())
     
 class GunzipEncodingStream extends BufferEncodingStream
-  debugName: 'GunzipEncodingStream'
   constructor: (srcStream) ->
     # HTTP response doesn't call write() with the encoding specified...but it is 'binary', so set that
     # as the default
@@ -147,7 +139,6 @@ class GunzipEncodingStream extends BufferEncodingStream
 
 # Base class to pipe a stream, converting/sending all the data at the end
 class EndTransformStream extends BaseStream
-  debugName: 'EndTransformStream'
   constructor: (@convertChunks) ->
     super()
     @chunks = []
@@ -161,7 +152,6 @@ class EndTransformStream extends BaseStream
 
 # Base class to pipe a stream, converting/sending string data at the end
 class EndStringTransformStream extends EndTransformStream
-  debugName: 'EndStringTransformStream'
   constructor: (@stringTransform) ->
     super (chunks, encoding) ->
       data = ''
@@ -172,7 +162,6 @@ class EndStringTransformStream extends EndTransformStream
 # A pipe that will read the entire input stream into a string, call a transform method, and
 # emit the result as a stream
 class StringTransformStream extends WrappedStream
-  debugName: 'StringTransformStream'
   constructor: (srcStream, stringTransformer) ->
     super(srcStream)
     @endStringTransformStream = new EndStringTransformStream(stringTransformer)
@@ -184,7 +173,6 @@ class StringTransformStream extends WrappedStream
 
 # Simualte/wrap a HTTP response with an alternate stream
 class WrappedHttpResponse extends WrappedStream
-  debugName: 'WrappedHttpResponse'
   constructor: (response, responseStream, headers) ->
     wrappedStream = responseStream ? response
     super(wrappedStream)
@@ -197,7 +185,6 @@ class WrappedHttpResponse extends WrappedStream
 
 # Wrap a HTTP response with a different result
 class StringTransformResponse extends WrappedHttpResponse
-  debugName: 'StringTransformResponse'
   constructor: (response, stringTransformer) ->
     super(response, new StringTransformStream(response, stringTransformer))
 
