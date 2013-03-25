@@ -62,7 +62,7 @@ class WrappedHttpResponse extends require('stream').Stream
       @trailers = @response.trailers
       @statusCode = @response.statusCode
       @httpVersion = @response.httpVersion
-    @responseStream = (responseStream) ? responseStream : @response
+    @responseStream = responseStream ? @response
 
     @responseStream.on 'data', (data) =>
       @emit 'data', data
