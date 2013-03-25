@@ -6,14 +6,14 @@ builtinTransformers =
   gzipTransformer:
     transformRecord: (response) ->
       if response.headers['content-encoding'] == 'gzip'
-        transformed = new WrappedHttpResponse(response, new BinaryEncodingStream(response, zlib.createGunzip()))
+        transformed = new WrappedHttpResponse(response, new BufferEncodingStream(response, zlib.createGunzip()))
         delete transformed.headers['content-encoding']
         delete transformed.headers['content-length']
         return transformed
       else
         return null
     transformPlayback: (response) ->
-      transformed = new WrappedHttpResponse(response, new BinaryEncodingStream(response, zlib.createGzip()))
+      transformed = new WrappedHttpResponse(response, new BufferEncodingStream(response, zlib.createGzip()))
       transformed.headers['content-encoding'] = 'gzip'
       return transformed
 
@@ -51,30 +51,6 @@ defaultTransformers = [
   'gzipTransformer',
   'jsonTransformer'
 ]
-
-# Simualte/wrap a HTTP response with an alternate stream
-class WrappedHttpResponse extends Stream
-  constructor: (@response, responseStream, headers) ->
-    super()
-    @readable = true
-    @writable = false
-    @headers = _.clone(headers ? @response.headers)
-    if (response)
-      @trailers = @response.trailers
-      @statusCode = @response.statusCode
-      @httpVersion = @response.httpVersion
-    @responseStream = responseStream ? @response
-
-    @responseStream.on 'data', (data) =>
-      @emit 'data', data
-    @responseStream.on 'end', =>
-      @emit 'end'
-    @responseStream.on 'error', (exception)=>
-      @emit 'error', exception
-    
-  pause: => @responseStream.pause()
-  resume: => @responseStream.resume()
-  setEncoding: (encoding) => @responseStream.setEncoding(encoding)
 
 convertToString = (data, encoding) ->
   if Buffer.isBuffer(data)
@@ -124,6 +100,7 @@ class OutputStream extends ChunkTransformStream
       else
         return convertToBuffer(data, encoding)
 
+# Stream to "wrap" another stream, while converting output to the correct type/encoding
 class WrappedStream extends OutputStream
   constructor: (@srcStream) ->
     super()
@@ -134,9 +111,9 @@ class WrappedStream extends OutputStream
     super(encoding)
     @srcStream.setEncoding(encoding)
             
-# Binary encoding streams (gzip/gunzip) only handle Buffer data and do not pass through
-# pause/resume calls.  Work around that here
-class BinaryEncodingStream extends WrappedStream
+# Buffer encoding streams (gzip/gunzip) only handle Buffer data and do not pass through
+# pause/resume calls.  Work around that here...
+class BufferEncodingStream extends WrappedStream
   constructor: (srcStream, encodingStream) ->
     super(srcStream)
     @toBufferStream = new ToBufferStream()
@@ -178,6 +155,18 @@ class StringTransformStream extends WrappedStream
   setEncoding: (encoding) =>
     super(encoding)
     @endStringTransformStream.setEncoding(encoding)
+
+# Simualte/wrap a HTTP response with an alternate stream
+class WrappedHttpResponse extends WrappedStream
+  constructor: (@response, responseStream, headers) ->
+    wrappedStream = responseStream ? @response
+    super(wrappedStream)
+    wrappedStream.pipe(this)
+    @headers = _.clone(headers ? @response.headers)
+    if (response)
+      @trailers = @response.trailers
+      @statusCode = @response.statusCode
+      @httpVersion = @response.httpVersion
 
 # Wrap a HTTP response with a different result
 class StringTransformResponse extends WrappedHttpResponse
