@@ -1,4 +1,5 @@
 #!/bin/sh
 echo Lets run some tests...
 echo here we go...
-echo all tests succeeded
+echo all tests failed
+exit 1
