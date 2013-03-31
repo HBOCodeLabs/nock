@@ -189,8 +189,8 @@ class StringTransformResponse extends WrappedHttpResponse
     super(response, new StringTransformStream(response, stringTransformer))
 
 # Apply transforms and return the response to be recorded
-transformRecordedResponse = (res, recordOptions, transformsUsed) ->
-  responseTransformers = recordOptions.responseTransformers;
+transformRecordedResponse = (res, nockOptions, transformsUsed) ->
+  responseTransformers = nockOptions.responseTransformers;
   if (!responseTransformers)
     responseTransformers = defaultTransformers
   recordedResponse = res
