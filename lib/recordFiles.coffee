@@ -12,8 +12,8 @@ builtinGetBaseFileName = {
     return crypto.createHash('md5').update(requestOptions.host + requestOptions.path + requestBody).digest('hex')
 }
 
-getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
-  option = recordOptions.getResponseBaseFileName
+getResponseBodyFileName = (requestOptions, requestBody, nockOptions) ->
+  option = nockOptions.getResponseBaseFileName
   if (typeof(option) == 'function')
     getResponseBaseFileName = option
   else if (typeof (option) == 'string')
@@ -25,9 +25,9 @@ getResponseBodyFileName = (requestOptions, requestBody, recordOptions) ->
 
   return filename
 
-recordBodyToFile = (requestOptions, requestBody, responseBody, recordOptions, callback) ->
+recordBodyToFile = (requestOptions, requestBody, responseBody, nockOptions, callback) ->
   fileName = path.join(
-    recordOptions.bodyPath, getResponseBodyFileName(requestOptions, requestBody, recordOptions))
+    nockOptions.bodyPath, getResponseBodyFileName(requestOptions, requestBody, nockOptions))
 
   checkForExistingFile fileName, responseBody, (err) ->
     if err
