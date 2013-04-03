@@ -1,8 +1,12 @@
 defaultRecordFilter = (options) ->
-  ((options.host != '127.0.0.1') && (options.host != 'localhost'))
+  return !((stringStartsWith(options.host, '127.0.0.1') ||
+           (stringStartsWith(options.host, 'localhost'))))
 
-shouldRecord = (httpOptions, recordOptions) ->
-  recordFilter = recordOptions.recordFilter
+stringStartsWith = (str, startingStr) ->
+  return (str.indexOf(startingStr) == 0)
+
+shouldRecord = (httpOptions, nockOptions) ->
+  recordFilter = nockOptions.recordFilter
   if (!recordFilter)
     recordFilter = defaultRecordFilter;
   # A callback to determine whether or not we want to record this request/response
