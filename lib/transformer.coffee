@@ -19,7 +19,7 @@ builtinTransformers =
 
   jsonTransformer:
     transformRecord: (response) ->
-      if response.headers['content-type'].search('application/json') >= 0
+      if response.headers['content-type']?.search('application/json') >= 0
         transformed = new StringTransformResponse response, (responseBody) ->
           parsedJSON = JSON.parse(responseBody)
           return JSON.stringify(parsedJSON, null, 2)
