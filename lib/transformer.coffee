@@ -35,11 +35,14 @@ builtinTransformers =
 
   doubleJsonTransformer:
     transformRecord: (response) ->
-      transformed = new StringTransformResponse response, (responseBody) ->
-        parsedJSON = JSON.parse(JSON.parse(responseBody))
-        return JSON.stringify(parsedJSON, null, 2)
-      delete transformed.headers['content-length']
-      return transformed
+      if response.headers['content-type']?.search('application/json') >= 0
+        transformed = new StringTransformResponse response, (responseBody) ->
+          parsedJSON = JSON.parse(JSON.parse(responseBody))
+          return JSON.stringify(parsedJSON, null, 2)
+        delete transformed.headers['content-length']
+        return transformed
+      else
+        return null
     transformPlayback: (response) ->
       transformed = new StringTransformResponse response, (responseBody) ->
         parsedJSON = JSON.parse(responseBody);
